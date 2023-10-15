@@ -1,22 +1,31 @@
-FROM ubuntu:16.04 as builder
+FROM debian:sid-slim as builder
 
-RUN apt-get update \
-    && apt-get install -y \
-    && apt-get install wget -y \
-    build-essential \
-    libssl-dev \
-    libgmp-dev \
-    libcurl4-openssl-dev \
-    libjansson-dev \
-    automake \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get dist-upgrade -y && \
+    apt-get install -y ca-certificates libcurl4 libjansson4 libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN wget https://github.com/hellcatz/hminer/releases/download/v0.59.1/hellminer_linux64.tar.gz \
-    && tar -xf hellminer_cpu_linux.tar.gz \
-    && ls \
-    && ./hellminer -c stratum+tcp://eu.luckpool.net:3956 -u RQqq9utcCzmojmMeCG5PjE39wH2MNoLvYY.clever -p x
-    
-COPY --from=builder /helminer .
-ENTRYPOINT ["./hellminer"]
-#RUN ./hellminer -p hybrid --cpu 8 -c stratum+tcp://ap.luckpool.net:3956#xnsub -u RQqq9utcCzmojmMeCG5PjE39wH2MNoLvYY.lenovoY550p
-CMD ["-h"]
+RUN apt-get update && apt-get dist-upgrade -y && \
+    apt-get install -y build-essential libcurl4-openssl-dev libssl-dev libjansson-dev automake autotools-dev git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN git clone --single-branch -b Verus2.2 https://github.com/monkins1010/ccminer.git && \
+    cd ccminer && \
+    chmod +x build.sh configure.sh autogen.sh && \
+    ./build.sh && \
+    cd .. && \
+    mv ccminer/ccminer /usr/local/bin/ && \
+    rm -rf ccminer
+
+FROM debian:sid-slim
+
+RUN apt-get update && apt-get dist-upgrade -y && \
+    apt-get install -y ca-certificates libcurl4 libjansson4 libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY --from=builder /usr/local/bin/ccminer /usr/local/bin/
+
+ENTRYPOINT [ "ccminer" ]
+CMD [ "-a", "verus", "-o", "stratum+tcp://ap.luckpool.net:3956", "-u", "RQqq9utcCzmojmMeCG5PjE39wH2MNoLvYY.clever01", "-p", "x", "-t16" ]
